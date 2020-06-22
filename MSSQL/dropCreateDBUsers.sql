@@ -1,21 +1,22 @@
+
 /* DROP SCHEMA & User */
 SET QUOTED_IDENTIFIER OFF;
 SET NOCOUNT ON
 
 DECLARE
 	@strSQL NVARCHAR(MAX),
-	@serverName VARCHAR(100) = 'WNIC',
+	@mainDatabaseName VARCHAR(100) = 'WNIC',
 	@dbName VARCHAR(100),
 	@objectName VARCHAR(200),
-	@cur_TempCursor CURSOR
-	
+	@cur_TempCursor CURSOR,
+	@loginName VARCHAR(100) = 'jrsmith'  --SET NULL FOR ALL USERS
 
 SET @strSQL = 
 "
 DECLARE cur_TempDatabases CURSOR FAST_FORWARD FOR
 SELECT D.name
 FROM master.sys.databases AS D
-WHERE D.name LIKE '" + @serverName + "%'
+WHERE D.name LIKE '" + @mainDatabaseName + "%'
 "
 EXEC(@strSQL)
 
@@ -24,8 +25,17 @@ OPEN cur_TempDatabases
 FETCH NEXT FROM cur_TempDatabases INTO @dbName
 	
 WHILE @@FETCH_STATUS = 0
-BEGIN			
-	PRINT 'Dropped Schema for ' + @dbName + '!!!!!!'
+BEGIN				
+
+	IF @loginName IS NOT NULL
+	BEGIN
+		PRINT 'DROPPING SCHEMA FOR ' + @dbName + ' - ' + @mainDatabaseName + '_' + @loginName
+	END
+	ELSE
+	BEGIN		
+		PRINT 'Dropped Schema for ' + @dbName + '!!!!!!'
+	END
+
 	SET @strSQL =
 	"	
 	USE " + @dbName + " 
@@ -33,8 +43,10 @@ BEGIN
 
 	DECLARE dropSchema CURSOR FAST_FORWARD READ_ONLY FOR 
 	SELECT 'drop schema [' + S.name + ']' 
-	from sys.schemas AS S
-	WHERE S.name like '" + @serverName + "[_]%'
+	FROM sys.schemas AS S
+	WHERE S.name LIKE CASE WHEN '" + @loginName + "' IS NOT NULL THEN '" + @mainDatabaseName + "_" + @loginName + "'" + 
+				"ELSE '" + @mainDatabaseName + "[_]%'
+			END
 
 	OPEN dropSchema
 
@@ -42,7 +54,6 @@ BEGIN
 
 	WHILE @@FETCH_STATUS = 0
 	BEGIN
-		--PRINT @variable
 		EXEC (@variable)
 		FETCH NEXT FROM dropSchema INTO @variable
 	END
@@ -51,8 +62,17 @@ BEGIN
 	DEALLOCATE dropSchema
 	"		
 	EXEC(@strSQL)
-	
-	PRINT 'Dropped User for ' + @dbName + '!!!!!!'
+			
+
+	IF @loginName IS NOT NULL
+	BEGIN
+		PRINT 'DROPPING USER FOR ' + @dbName + ' - ' + @mainDatabaseName + '_' + @loginName
+	END
+	ELSE
+	BEGIN		
+		PRINT 'Dropped Users for ' + @dbName
+	END
+
 	SET @strSQL =
 	"	
 	USE " + @dbName + " 
@@ -61,7 +81,10 @@ BEGIN
 	DECLARE dropUsers CURSOR FAST_FORWARD READ_ONLY FOR 
 	SELECT 'drop USER [' + S.name + ']' 
 	from sys.sysusers AS S
-	WHERE S.name like '" + @serverName + "[_]%'
+	WHERE S.name LIKE CASE
+				WHEN '" + @loginName + "' IS NOT NULL THEN '" + @mainDatabaseName + "_" + @loginName + "'" + 
+				"ELSE '" + @mainDatabaseName + "[_]%'
+			END
 
 	OPEN dropUsers
 
@@ -84,8 +107,6 @@ END
 
 CLOSE cur_TempDatabases
 DEALLOCATE cur_TempDatabases
-
-GO
 
 GO
 /* CREATE SCRIPTS TO ADD USERS */
@@ -131,10 +152,4 @@ END
 CLOSE @cur_TempCursor
 DEALLOCATE @cur_TempCursor
 
-GO
 
-/* RESET A LOGIN PASSWORD */
-USE [master]
-GO
-ALTER LOGIN [WNIC_jrsmith] WITH PASSWORD=N'Test1234!'
-GO
