@@ -11,7 +11,7 @@ BEGIN TRY
 		@sp_adduser VARCHAR(MAX),
 		@sp_addrolemember VARCHAR(MAX),
 		@dbName VARCHAR(50) = 'HOAIC60',  --set DB
-		@newUserName VARCHAR(50) = '',  --new user name
+		@newUserName VARCHAR(50) = 'dwight.bills',  --new user name
 		@newUserPassword VARCHAR(50) = 'Testing123!' --new user password
 
 	SET @dbName = RTRIM(LTRIM(@dbName))
@@ -188,7 +188,7 @@ BEGIN TRY
 		SET @sql = 'INSERT INTO ' + @dbName + '_Config.' + @schemaName + '.' + @tableName + '(' + @tableColumns + ')';
 		SET @sql = @sql + ' SELECT DISTINCT ' + REPLACE(@tableColumns,'usersID', @newUserID) + ' FROM ' + @dbName + '_Config.' + @schemaName + '.' + @tableName + ' AS U WHERE U.usersID = 3;'
 	
-		PRINT @sql
+		--PRINT @sql
 		EXEC(@sql)
 	
 		TRUNCATE TABLE #tmpInsertTable
